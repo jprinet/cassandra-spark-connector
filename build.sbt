@@ -25,6 +25,28 @@ ThisBuild / publishTo := Publishing.Repository
 ThisBuild / scmInfo := Publishing.OurScmInfo
 ThisBuild / version := Publishing.Version
 
+// Develocity: Build Scans and build cache. CI is detected by GITHUB_ACTIONS, by presence;
+// writing to the remote cache additionally requires a non-empty access key, so forks and
+// local builds only read from it.
+val isCI = sys.env.contains("GITHUB_ACTIONS")
+val hasAccessKey = sys.env.get("DEVELOCITY_ACCESS_KEY").exists(_.nonEmpty)
+
+ThisBuild / develocityConfiguration ~= { previous =>
+  previous
+    .withServer(
+      previous.server
+        .withUrl(url("https://develocity.example.ai")))
+    .withBuildScan(
+      previous.buildScan.withBackgroundUpload(!isCI))
+    .withBuildCache(
+      previous.buildCache
+        .withLocal(previous.buildCache.local.withEnabled(true))
+        .withRemote(
+          previous.buildCache.remote
+            .withEnabled(true)
+            .withStoreEnabled(isCI && hasAccessKey)))
+}
+
 Global / resolvers ++= Seq(
   DefaultMavenRepository,
   Resolver.sonatypeRepo("public")
